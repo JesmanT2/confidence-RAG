@@ -1,19 +1,10 @@
-from app.rag_service import ConfidenceGatedRAG
+from __future__ import annotations
 
-service = ConfidenceGatedRAG()
-service.ingest_documents([
-    {"id": "doc-1", "text": "The deductible for comprehensive claims is $500."},
-    {"id": "doc-2", "text": "Flood coverage has a 30-day waiting period."},
-])
-service.fit_gate([
-    {"query": "What is the deductible for comprehensive claims?", "answerable": True},
-    {"query": "How long is the waiting period for flood coverage?", "answerable": True},
-    {"query": "What is the jewelry limit?", "answerable": False},
-])
+import json
 
-examples = [
-    {"query": "What is the deductible for comprehensive claims?", "answerable": True},
-    {"query": "How long is the waiting period for flood coverage?", "answerable": True},
-    {"query": "What is the jewelry limit?", "answerable": False},
-]
-print(service.evaluate(examples))
+from app.pipeline import run_eval
+
+
+if __name__ == "__main__":
+    report = run_eval(threshold=0.552)
+    print(json.dumps(report, indent=2))

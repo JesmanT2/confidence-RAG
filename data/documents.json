@@ -1,0 +1,22 @@
+[
+  {
+    "id": "auto-policy",
+    "text": "Section 1: Collision coverage has a deductible of $1,000. Section 2: Comprehensive coverage has a deductible of $500. Section 3: Rental reimbursement is limited to $40 per day for a maximum of 20 days. Section 4: Roadside assistance includes towing up to 15 miles per disablement event. Section 5: Windshield repair has no deductible when completed by an in-network vendor."
+  },
+  {
+    "id": "home-policy",
+    "text": "Section 1: Water backup coverage has a sub-limit of $10,000 per policy period. Section 2: Jewelry theft is covered up to $2,500 unless separately scheduled. Section 3: Mold remediation is capped at $5,000. Section 4: Sewer line damage is excluded unless the service line endorsement is purchased. Section 5: Personal liability coverage is $300,000 per occurrence."
+  },
+  {
+    "id": "flood-endorsement",
+    "text": "Flood endorsement terms: There is a 30-day waiting period before flood coverage becomes effective. Basement improvements are covered up to $15,000. Temporary housing due to flood is covered for up to 14 days at actual loss sustained subject to policy limits."
+  },
+  {
+    "id": "travel-policy",
+    "text": "Travel policy terms: Trip cancellation benefit maximum is $8,000 per insured trip. Emergency medical evacuation is covered up to $250,000. Baggage delay pays $100 for each full 12-hour delay, with a maximum benefit of $500."
+  },
+  {
+    "id": "general-exclusions",
+    "text": "General exclusions: Intentional loss is not covered. Earth movement is excluded unless earthquake endorsement is attached. Wear and tear is excluded from all coverage sections."
+  }
+]

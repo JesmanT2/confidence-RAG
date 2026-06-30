@@ -30,3 +30,8 @@ jobs:
           python -c "import sys, platform; print(sys.executable, platform.platform())"
           echo "--- Running tests (verbose) ---"
           pytest -q -r a
+      - name: Run evaluation harness
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python eval_sample.py

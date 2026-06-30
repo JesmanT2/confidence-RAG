@@ -1,18 +1,17 @@
+from typing import Any, Dict
+
 from fastapi import FastAPI, Query
-from app.rag_service import ConfidenceGatedRAG
+from pydantic import BaseModel, Field
+
+from app.pipeline import build_service, run_eval
 
 app = FastAPI(title="Confidence-Gated RAG")
-service = ConfidenceGatedRAG()
+service = build_service()
 
-service.ingest_documents([
-    {"id": "doc-1", "text": "The deductible for comprehensive claims is $500."},
-    {"id": "doc-2", "text": "Flood coverage has a 30-day waiting period."},
-])
-service.fit_gate([
-    {"query": "What is the deductible for comprehensive claims?", "answerable": True},
-    {"query": "How long is the waiting period for flood coverage?", "answerable": True},
-    {"query": "What is the jewelry limit?", "answerable": False},
-])
+
+class AskRequest(BaseModel):
+    query: str = Field(..., min_length=3)
+    threshold: float = Field(default=0.552, ge=0.0, le=1.0)
 
 
 @app.get("/health")
@@ -20,6 +19,21 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/ask")
+def ask_get(query: str = Query(...), threshold: float = Query(0.552, ge=0.0, le=1.0)) -> Dict[str, Any]:
+    return service.answer_query(query, threshold=threshold, use_gate=True)
+
+
 @app.post("/ask")
-def ask(query: str = Query(...)) -> dict:
-    return service.answer_query(query)
+def ask_post(request: AskRequest) -> Dict[str, Any]:
+    return service.answer_query(request.query, threshold=request.threshold, use_gate=True)
+
+
+@app.get("/ask/baseline")
+def ask_baseline(query: str = Query(...), threshold: float = Query(0.552, ge=0.0, le=1.0)) -> Dict[str, Any]:
+    return service.answer_query(query, threshold=threshold, use_gate=False)
+
+
+@app.get("/eval")
+def eval_report(threshold: float = Query(0.552, ge=0.0, le=1.0)) -> Dict[str, Any]:
+    return run_eval(threshold=threshold)
