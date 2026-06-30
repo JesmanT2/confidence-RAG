@@ -14,8 +14,17 @@ jobs:
           python-version: '3.11'
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          echo "--- Python and pip versions ---"
+          python --version
+          python -m pip --version
+          echo "--- Upgrade packaging tools ---"
+          python -m pip install --upgrade pip setuptools wheel
+          echo "--- Install requirements (verbose) ---"
+          python -m pip install -r requirements.txt -v
       - name: Run tests
         run: |
-          pytest -q
+          echo "--- pytest version and environment ---"
+          pytest --version
+          python -c "import sys, platform; print(sys.executable, platform.platform())"
+          echo "--- Running tests (verbose) ---"
+          pytest -q -r a
