@@ -22,6 +22,8 @@ jobs:
           echo "--- Install requirements (verbose) ---"
           python -m pip install -r requirements.txt -v
       - name: Run tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           echo "--- pytest version and environment ---"
           pytest --version
