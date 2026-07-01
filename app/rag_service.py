@@ -4,12 +4,14 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Literal, Sequence
 
 import chromadb
 import numpy as np
 from chromadb.api.types import EmbeddingFunction
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold, cross_val_score
@@ -38,6 +40,16 @@ class HashingEmbeddingFunction(EmbeddingFunction):
         return matrix.toarray().astype(float).tolist()
 
 
+class SentenceTransformerEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
+        self.model_name = model_name
+        self.model = SentenceTransformer(model_name)
+
+    def __call__(self, input: Sequence[str]) -> List[List[float]]:
+        embeddings = self.model.encode(list(input), normalize_embeddings=True)
+        return np.asarray(embeddings, dtype=float).tolist()
+
+
 class ConfidenceGatedRAG:
     def __init__(
         self,
@@ -45,15 +57,27 @@ class ConfidenceGatedRAG:
         collection_name: str = "insurance_policy_chunks",
         top_k: int = 5,
         relevant_similarity_cutoff: float = 0.2,
+        embedding_provider: Literal["semantic", "hashing"] = "semantic",
+        embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        llm_provider: Literal["none", "openai"] = "none",
+        openai_model: str = "gpt-4o-mini",
     ) -> None:
         os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
         self.persist_dir = persist_dir
         self.collection_name = collection_name
         self.top_k = top_k
         self.relevant_similarity_cutoff = relevant_similarity_cutoff
+        self.embedding_provider = embedding_provider
+        self.embedding_model_name = embedding_model_name
+        self.llm_provider = llm_provider
+        self.openai_model = openai_model
 
         Path(persist_dir).mkdir(parents=True, exist_ok=True)
-        self.embedding_fn = HashingEmbeddingFunction()
+        if self.embedding_provider == "semantic":
+            self.embedding_fn = SentenceTransformerEmbeddingFunction(model_name=self.embedding_model_name)
+        else:
+            self.embedding_fn = HashingEmbeddingFunction()
+
         self.client = chromadb.PersistentClient(path=persist_dir)
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
@@ -64,6 +88,10 @@ class ConfidenceGatedRAG:
         self.classifier = LogisticRegression(max_iter=1000, class_weight="balanced", random_state=42)
         self.default_gate_threshold = 0.552
         self.model_cv_accuracy: float | None = None
+        self._openai_client: OpenAI | None = None
+        self._openai_api_key = os.getenv("OPENAI_API_KEY")
+        if self.llm_provider == "openai" and self._openai_api_key:
+            self._openai_client = OpenAI(api_key=self._openai_api_key)
 
     def ingest_documents(
         self,
@@ -168,8 +196,28 @@ class ConfidenceGatedRAG:
                 "but specific limits depend on endorsements."
             )
 
-        context = " ".join(chunk.text for chunk in retrieved_chunks[:2])
+        context = "\n\n".join(chunk.text for chunk in retrieved_chunks[:3])
+        if self._openai_client is not None:
+            return self._generate_with_openai(query, context)
+
         return f"Using only policy context: {context}"
+
+    def _generate_with_openai(self, query: str, context: str) -> str:
+        system_prompt = (
+            "You are a policy QA assistant. Answer ONLY using the provided context. "
+            "If the context is insufficient, reply exactly: I don't have enough information in the provided policy context."
+        )
+        user_prompt = f"Question: {query}\n\nContext:\n{context}"
+        response = self._openai_client.chat.completions.create(
+            model=self.openai_model,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = response.choices[0].message.content
+        return content.strip() if content else "I don't have enough information in the provided policy context."
 
     def answer_query(self, query: str, threshold: float | None = None, use_gate: bool = True) -> Dict[str, Any]:
         gate_threshold = threshold if threshold is not None else self.default_gate_threshold

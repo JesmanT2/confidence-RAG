@@ -9,13 +9,13 @@ Retrieval-augmented Q&A system over insurance policy documents that predicts ret
    - Chunking via `RecursiveCharacterTextSplitter` from LangChain
 2. Retrieval
    - ChromaDB vector store (persistent local directory: `.chroma`)
-   - Custom deterministic hashing-based embedding function for local reproducibility
+   - Semantic embeddings via SentenceTransformers (`all-MiniLM-L6-v2`)
 3. Confidence classifier
    - scikit-learn `LogisticRegression`
    - Features: top similarity, score gap, relevant chunk count
 4. Gated generation behavior
    - Low confidence: abstain with "I don't have enough information..."
-   - High confidence: answer only from retrieved context
+   - High confidence: generate answer only from retrieved context (OpenAI optional)
 5. Evaluation harness
    - 30-question set in `data/eval_questions.json` (20 answerable, 10 unanswerable)
    - Compare baseline (always answer) vs gated pipeline
@@ -42,6 +42,17 @@ python eval_sample.py
 uvicorn main:app --reload
 ```
 
+## Optional OpenAI generation
+
+Set environment variables before running the API:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+set RAG_LLM_PROVIDER=openai
+```
+
+By default, `RAG_LLM_PROVIDER=none`, which keeps generation deterministic for offline testing.
+
 ## API endpoints
 
 - `GET /health` health check
@@ -61,7 +72,9 @@ docker run --rm -p 8000:8000 confidence-rag:latest
 
 See `deploy/aws/README.md` for ECR push and EC2 run instructions.
 
+Current status: deployment-ready with ECR/EC2 automation scripts. If you publish a live endpoint, update this section with the production URL.
+
 ## Notes
 
-- The current generator is deterministic and context-bounded to keep behavior testable and reproducible.
-- You can swap in a hosted LLM behind the confidence gate while keeping the same retrieval features and abstention policy.
+- Retrieval supports semantic embeddings by default. For offline tests you can set `RAG_EMBEDDING_PROVIDER=hashing`.
+- The OpenAI answer generator is wired behind the confidence gate when `RAG_LLM_PROVIDER=openai` and `OPENAI_API_KEY` are set.
